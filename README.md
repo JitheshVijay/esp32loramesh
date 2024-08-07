@@ -14,8 +14,6 @@ TTGO LoRa32 SX1276 OLED board
 
 ## Libraries Used
 
-## Libraries Used
-
 - `SPI.h`
 - `Wire.h`
 - `Adafruit_GFX.h`
