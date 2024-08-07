@@ -175,11 +175,7 @@ void loop() {
 
   String countStr = String(counter, DEC);
   Serial.println(countStr);
-
   displayLoraData(countStr);
-
-
-
   counter++;
   delay(1500);
 }
