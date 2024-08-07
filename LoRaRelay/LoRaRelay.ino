@@ -106,7 +106,7 @@ Adafruit_SSD1306 display(128, 64, &Wire, OLED_RST);
 
 BluetoothSerial SerialBT;
 
-#define NODE_ID 4 // Assign a unique ID for each node
+#define NODE_ID 2 // Assign a unique ID for each node
 
 void showLogo() {
   uint8_t x_off = (display.width() - logo_width) / 2;
