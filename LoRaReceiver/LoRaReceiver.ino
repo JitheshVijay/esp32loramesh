@@ -5,6 +5,12 @@
 #include <LoRa.h>
 #include "BluetoothSerial.h"
 
+// Constants for distance calculation
+const float A = 0.14249221769081155;
+const float B = 5.955924769800823;
+const float C = 1.12026988449282;
+const int t = -40; // Example reference RSSI at 1 meter, adjust as needed
+
 // This is the LoRa(tm) image
 #define logo_width 99
 #define logo_height 64
@@ -103,7 +109,7 @@ Adafruit_SSD1306 display(128, 64, &Wire, OLED_RST);
 
 BluetoothSerial SerialBT;
 
-#define NODE_ID 3 // Assign a unique ID for each node
+#define NODE_ID 5 // Assign a unique ID for each node
 
 void setup() {
   Serial.begin(115200);
@@ -114,7 +120,7 @@ void setup() {
   SerialBT.begin("LoRaReceiver"); //Bluetooth device name
   Serial.println("The device started, now you can pair it with bluetooth!");
 
-  // Configure OLED by setting the OLED Reset HIGH, LOW, and then back HIGH
+
   pinMode(OLED_RST, OUTPUT);
   digitalWrite(OLED_RST, HIGH);
   delay(100);
@@ -173,8 +179,10 @@ void loop() {
     }
     String rssi = "RSSI " + String(LoRa.packetRssi(), DEC);
     Serial.println(rssi);
-
-    displayLoraData(packetSize, packet, rssi);
+    
+    float distance = calculateDistance(LoRa.packetRssi());
+    String distanceStr = String(distance);
+    displayLoraData(packetSize, packet, rssi, distanceStr);
 
     SerialBT.print(packetSize);
     SerialBT.print("  ");
@@ -185,19 +193,35 @@ void loop() {
   delay(10);
 }
 
-void displayLoraData(int packetSize, String packet, String rssi) {
+void displayLoraData(int packetSize, String packet, String rssi, String distanceStr) {
   String packSize = String(packetSize, DEC);
-
-  display.clearDisplay();
+  display.clearDisplay(); // Clear the OLED before drawing
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+
   display.setCursor(0, 0);
   display.println(rssi);
-  display.setCursor(0, 15);
+  display.setCursor(0, 10);
   display.println("Received " + packSize + " bytes");
-  display.setCursor(0, 26);
+  display.setCursor(0, 20);
   display.println(packet);
+
+
+  display.setCursor(0, 30);
+  display.print("Estimated Distance: ");
+  display.println(distanceStr + " m"); 
+
   display.display();
+}
+
+
+
+
+float calculateDistance(int rssi) {
+  float ratio = (float)rssi / t;
+  float distance = A * pow(ratio, B) + C;
+  return distance;
+
 }
 
 void showLogo() {
