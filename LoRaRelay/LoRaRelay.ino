@@ -9,7 +9,7 @@
 const float A = 0.14249221769081155;
 const float B = 5.955924769800823;
 const float C = 1.12026988449282;
-const int t = -40; // Example reference RSSI at 1 meter, adjust as needed
+const int t = -40; 
 
 // LoRa Image Bitmap (truncated for brevity)
 #define logo_width 99
