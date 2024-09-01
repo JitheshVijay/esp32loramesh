@@ -5,7 +5,13 @@
 #include <LoRa.h>
 #include "BluetoothSerial.h"
 
-// This is the LoRa(tm) image
+// Constants for distance calculation
+const float A = 0.14249221769081155;
+const float B = 5.955924769800823;
+const float C = 1.12026988449282;
+const int t = -40; // Example reference RSSI at 1 meter, adjust as needed
+
+// LoRa Image Bitmap (truncated for brevity)
 #define logo_width 99
 #define logo_height 64
 
@@ -82,8 +88,6 @@ const uint8_t logo_bits[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00,
 };
 
-
-
 #define LORA_BAND     915
 
 #define OLED_SDA    4
@@ -97,16 +101,19 @@ const uint8_t logo_bits[] PROGMEM = {
 #define RST 14  // GPIO14 -- SX1278's RESET
 #define DI0 26  // GPIO26 -- SX1278's IRQ(Interrupt Request)
 
-
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
 Adafruit_SSD1306 display(128, 64, &Wire, OLED_RST);
-
 BluetoothSerial SerialBT;
 
-#define NODE_ID 2 // Assign a unique ID for each node
+#define NODE_ID 4 // Assign a unique ID for each node
+
+// Function Prototypes
+void showLogo();
+void displayLoraData(int packetSize, String packet, String rssi, String distanceStr);
+float calculateDistance(int rssi);
 
 void showLogo() {
   uint8_t x_off = (display.width() - logo_width) / 2;
@@ -121,10 +128,10 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
   Serial.println();
-  Serial.println("LoRa Relay Node 1");
+  Serial.println("LoRa Relay Node 3");
 
-  SerialBT.begin("LoRaRelay"); //Bluetooth device name
-  Serial.println("The device started, now you can pair it with bluetooth!");
+  SerialBT.begin("LoRaRelay"); // Bluetooth device name
+  Serial.println("The device started, now you can pair it with Bluetooth!");
 
   // Configure OLED by setting the OLED Reset HIGH, LOW, and then back HIGH
   pinMode(OLED_RST, OUTPUT);
@@ -134,9 +141,9 @@ void setup() {
   delay(100);
   digitalWrite(OLED_RST, HIGH);
 
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
     Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
+    for (;;);
   }
 
   showLogo();
@@ -146,7 +153,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 10);
-  display.println(F("LoRa Relay"));
+  display.println(F("LoRa Relay 3"));
   display.display();
   delay(2000);
 
@@ -157,7 +164,7 @@ void setup() {
     Serial.println("Starting LoRa failed!");
     while (1);
   }
-  Serial.println("init ok");
+  Serial.println("LoRa Initializing OK!");
 
   // Set spreading factor to 12 (max range)
   LoRa.setSpreadingFactor(12);
@@ -186,43 +193,47 @@ void loop() {
     String rssi = "RSSI " + String(LoRa.packetRssi(), DEC);
     Serial.println(rssi);
 
-    // Extract the Node ID from the packet
-    int receivedNodeId = packet.substring(0, 1).toInt();
-
-    displayLoraData(packetSize, packet, rssi, receivedNodeId);
+    float distance = calculateDistance(LoRa.packetRssi());
+    String distanceStr = String(distance, 2); 
+    displayLoraData(packetSize, packet, rssi, distanceStr);
 
     SerialBT.print(packetSize);
-    SerialBT.print(" ");
+    SerialBT.print("  ");
     SerialBT.print(packet);
-    SerialBT.print(" ");
-    SerialBT.println(rssi);
-
-    // Forward the packet if it's not from this node
-    if (receivedNodeId != NODE_ID) {
-      delay(random(1000, 3000)); // Add a random delay to avoid collisions
-      LoRa.beginPacket();
-      LoRa.print(packet);
-      LoRa.endPacket();
-      LoRa.receive();
-    }
+    SerialBT.print("  ");
+    SerialBT.println(rssi);    
   }
   delay(10);
 }
 
-void displayLoraData(int packetSize, String packet, String rssi, int receivedNodeId) {
+void displayLoraData(int packetSize, String packet, String rssi, String distanceStr) {
   String packSize = String(packetSize, DEC);
-
-  display.clearDisplay();
+  display.clearDisplay(); 
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
+
   display.setCursor(0, 0);
   display.println(rssi);
-  display.setCursor(0, 15);
+  display.setCursor(0, 10);
   display.println("Received " + packSize + " bytes");
-  display.setCursor(0, 26);
-  display.print("From Node: ");
-  display.println(receivedNodeId);
+  display.setCursor(0, 20);
   display.println(packet);
+
+  
+  display.setCursor(0, 30);
+  display.print("Estimated Distance: ");
+  display.println(distanceStr + " m"); 
+
   display.println("Relaying Packet");
   display.display();
+}
+
+float calculateDistance(int rssi) {
+  
+  float ratio = (float)rssi / t;
+  if (ratio <= 0) {
+    return -1.0; 
+  }
+  float distance = A * pow(ratio, B) + C;
+  return distance;
 }
